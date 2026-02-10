@@ -2,21 +2,43 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Subscription, type BillingCycle } from "../db";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Plus, Trash2, Pause, Play, Pencil, X, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pause, Play, Pencil, X, PiggyBank } from "lucide-react";
 import PageTransition from "../components/PageTransition";
 import EmptyState from "../components/EmptyState";
 import Button from "../components/Button";
 
-const POPULAR_SUBS = [
-  { name: "Netflix", icon: "🎬" },
-  { name: "Spotify", icon: "🎵" },
-  { name: "YouTube Premium", icon: "▶️" },
-  { name: "iCloud+", icon: "☁️" },
-  { name: "ChatGPT Plus", icon: "🤖" },
-  { name: "Apple Music", icon: "🎧" },
-  { name: "Disney+", icon: "🏰" },
-  { name: "Amazon Prime", icon: "📦" },
-];
+interface Preset {
+  name: string;
+  icon: string;
+  category: string;
+}
+
+const PRESETS: Record<string, Preset[]> = {
+  "Abonelikler": [
+    { name: "Netflix", icon: "🎬", category: "subscriptions" },
+    { name: "Spotify", icon: "🎵", category: "subscriptions" },
+    { name: "YouTube Premium", icon: "▶️", category: "subscriptions" },
+    { name: "iCloud+", icon: "☁️", category: "subscriptions" },
+    { name: "ChatGPT Plus", icon: "🤖", category: "subscriptions" },
+    { name: "Apple Music", icon: "🎧", category: "subscriptions" },
+    { name: "Disney+", icon: "🏰", category: "subscriptions" },
+    { name: "Amazon Prime", icon: "📦", category: "subscriptions" },
+  ],
+  "Faturalar": [
+    { name: "Elektrik", icon: "⚡", category: "bills" },
+    { name: "Su", icon: "💧", category: "bills" },
+    { name: "Doğalgaz", icon: "🔥", category: "bills" },
+    { name: "İnternet", icon: "🌐", category: "bills" },
+    { name: "Telefon", icon: "📱", category: "bills" },
+  ],
+  "Diğer Sabit": [
+    { name: "Kira", icon: "🏠", category: "bills" },
+    { name: "Sigorta", icon: "🛡️", category: "health" },
+    { name: "Spor Salonu", icon: "💪", category: "entertainment" },
+    { name: "Toplu Taşıma Kartı", icon: "🚇", category: "transport" },
+    { name: "Kreş/Okul", icon: "📚", category: "other" },
+  ],
+};
 
 function getMonthlyAmount(amount: number, cycle: BillingCycle) {
   return cycle === "yearly" ? amount / 12 : amount;
@@ -59,9 +81,10 @@ export default function Subscriptions() {
     setShowForm(true);
   }
 
-  function pickPopular(p: { name: string; icon: string }) {
+  function pickPreset(p: Preset) {
     setName(p.name);
     setIcon(p.icon);
+    setCategoryId(p.category);
   }
 
   async function handleSave() {
@@ -109,17 +132,25 @@ export default function Subscriptions() {
   );
   const yearlyTotal = monthlyTotal * 12;
 
+  // Group active subs by category
+  const grouped = new Map<string, Subscription[]>();
+  for (const sub of activeSubs) {
+    const list = grouped.get(sub.categoryId) || [];
+    list.push(sub);
+    grouped.set(sub.categoryId, list);
+  }
+
   return (
     <PageTransition>
       <div className="p-4 pb-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Abonelikler</h1>
+          <h1 className="text-2xl font-bold">Sabit Giderler</h1>
           {!showForm && (
             <button
               onClick={() => { resetForm(); setShowForm(true); }}
               className="bg-blue-500 active:bg-blue-600 rounded-full w-9 h-9 flex items-center justify-center
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label="Yeni abonelik ekle"
+              aria-label="Yeni sabit gider ekle"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -131,13 +162,17 @@ export default function Subscriptions() {
           <div className="bg-slate-800 rounded-xl p-4 mb-5">
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-slate-400 text-xs">Aylık Toplam</p>
+                <p className="text-slate-400 text-xs">Aylık Sabit Gider</p>
                 <p className="text-2xl font-bold tabular-nums">€{monthlyTotal.toFixed(2)}</p>
               </div>
               <div className="text-right">
                 <p className="text-slate-400 text-xs">Yıllık</p>
                 <p className="text-sm text-slate-300 tabular-nums">€{yearlyTotal.toFixed(2)}</p>
               </div>
+            </div>
+            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-700 text-xs text-slate-400">
+              <span>{activeSubs.length} aktif</span>
+              {pausedSubs.length > 0 && <span>{pausedSubs.length} duraklatılmış</span>}
             </div>
           </div>
         )}
@@ -147,7 +182,7 @@ export default function Subscriptions() {
           <div className="bg-slate-800 rounded-xl p-4 mb-5 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">
-                {editId ? "Aboneliği Düzenle" : "Yeni Abonelik"}
+                {editId ? "Gideri Düzenle" : "Yeni Sabit Gider"}
               </h2>
               <button
                 onClick={resetForm}
@@ -157,21 +192,28 @@ export default function Subscriptions() {
               </button>
             </div>
 
-            {/* Popular suggestions */}
+            {/* Presets by group */}
             {!editId && (
-              <div className="flex flex-wrap gap-1.5">
-                {POPULAR_SUBS.map((p) => (
-                  <button
-                    key={p.name}
-                    onClick={() => pickPopular(p)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors
-                      ${name === p.name
-                        ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                        : "border-slate-600 text-slate-400 active:border-slate-500"
-                      }`}
-                  >
-                    {p.icon} {p.name}
-                  </button>
+              <div className="space-y-2">
+                {Object.entries(PRESETS).map(([group, items]) => (
+                  <div key={group}>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{group}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {items.map((p) => (
+                        <button
+                          key={p.name}
+                          onClick={() => pickPreset(p)}
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors
+                            ${name === p.name
+                              ? "border-blue-500 bg-blue-500/20 text-blue-300"
+                              : "border-slate-600 text-slate-400 active:border-slate-500"
+                            }`}
+                        >
+                          {p.icon} {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -188,7 +230,7 @@ export default function Subscriptions() {
               />
               <input
                 type="text"
-                placeholder="Abonelik adı"
+                placeholder="Gider adı"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="flex-1 bg-slate-700 rounded-lg px-3 py-2.5 text-white
@@ -255,106 +297,117 @@ export default function Subscriptions() {
           </div>
         )}
 
-        {/* Active Subscriptions */}
+        {/* Empty state */}
         {subscriptions.length === 0 && !showForm ? (
           <EmptyState
-            icon={RefreshCw}
-            title="Henüz abonelik yok"
-            description="Netflix, Spotify gibi aylık aboneliklerinizi ekleyin"
+            icon={PiggyBank}
+            title="Henüz sabit gider yok"
+            description="Abonelik, fatura ve düzenli ödemelerinizi ekleyin"
             action={
               <Button
                 onClick={() => setShowForm(true)}
                 icon={<Plus className="w-5 h-5" />}
                 className="mt-2 w-auto px-6"
               >
-                Abonelik Ekle
+                Gider Ekle
               </Button>
             }
           />
         ) : (
           <>
-            {activeSubs.length > 0 && (
-              <div className="space-y-2 mb-5">
-                {activeSubs.map((sub) => {
-                  const monthly = getMonthlyAmount(sub.amount, sub.cycle);
-                  const cat = categories.find((c) => c.id === sub.categoryId);
+            {/* Active - grouped by category */}
+            {Array.from(grouped.entries()).map(([catId, subs]) => {
+              const cat = categories.find((c) => c.id === catId);
+              const groupMonthly = subs.reduce(
+                (sum, s) => sum + getMonthlyAmount(s.amount, s.cycle), 0,
+              );
 
-                  return (
-                    <div key={sub.id} className="relative">
-                      <div className="bg-slate-800 rounded-xl p-3.5 flex items-center gap-3">
-                        <span className="text-xl shrink-0">{sub.icon || cat?.icon || "📋"}</span>
+              return (
+                <div key={catId} className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      {cat?.icon} {cat?.name || catId}
+                    </h2>
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      €{groupMonthly.toFixed(2)}/ay
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {subs.map((sub) => {
+                      const monthly = getMonthlyAmount(sub.amount, sub.cycle);
 
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{sub.name}</p>
-                          <p className="text-xs text-slate-400">
-                            {cat?.name}
-                            {sub.cycle === "yearly" && " · Yıllık"}
-                          </p>
-                        </div>
+                      return (
+                        <div key={sub.id} className="bg-slate-800 rounded-xl p-3.5 flex items-center gap-3">
+                          <span className="text-xl shrink-0">{sub.icon || cat?.icon || "📋"}</span>
 
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-semibold tabular-nums">€{sub.amount.toFixed(2)}</p>
-                          {sub.cycle === "yearly" && (
-                            <p className="text-[10px] text-slate-400 tabular-nums">
-                              ~€{monthly.toFixed(2)}/ay
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{sub.name}</p>
+                            <p className="text-xs text-slate-400">
+                              {sub.cycle === "monthly" ? "Aylık" : "Yıllık"}
                             </p>
-                          )}
-                        </div>
+                          </div>
 
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={() => startEdit(sub)}
-                            className="p-1.5 rounded-lg text-slate-500 active:text-blue-400
-                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                            aria-label="Düzenle"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => toggleActive(sub)}
-                            className="p-1.5 rounded-lg text-slate-500 active:text-yellow-400
-                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
-                            aria-label="Duraklat"
-                          >
-                            <Pause className="w-3.5 h-3.5" />
-                          </button>
-                          {deleteId === sub.id ? (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => handleDelete(sub.id)}
-                                className="text-xs bg-red-500 text-white px-2 py-1 rounded-lg"
-                              >
-                                Sil
-                              </button>
-                              <button
-                                onClick={() => setDeleteId(null)}
-                                className="text-xs bg-slate-600 text-white px-2 py-1 rounded-lg"
-                              >
-                                İptal
-                              </button>
-                            </div>
-                          ) : (
+                          <div className="text-right shrink-0 mr-1">
+                            <p className="text-sm font-semibold tabular-nums">€{sub.amount.toFixed(2)}</p>
+                            {sub.cycle === "yearly" && (
+                              <p className="text-[10px] text-slate-400 tabular-nums">
+                                ~€{monthly.toFixed(2)}/ay
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex gap-0.5 shrink-0">
                             <button
-                              onClick={() => setDeleteId(sub.id)}
-                              className="p-1.5 rounded-lg text-slate-500 active:text-red-400
-                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                              aria-label="Sil"
+                              onClick={() => startEdit(sub)}
+                              className="p-1.5 rounded-lg text-slate-500 active:text-blue-400"
+                              aria-label="Düzenle"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                            <button
+                              onClick={() => toggleActive(sub)}
+                              className="p-1.5 rounded-lg text-slate-500 active:text-yellow-400"
+                              aria-label="Duraklat"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                            </button>
+                            {deleteId === sub.id ? (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleDelete(sub.id)}
+                                  className="text-xs bg-red-500 text-white px-2 py-1 rounded-lg"
+                                >
+                                  Sil
+                                </button>
+                                <button
+                                  onClick={() => setDeleteId(null)}
+                                  className="text-xs bg-slate-600 text-white px-2 py-1 rounded-lg"
+                                >
+                                  İptal
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setDeleteId(sub.id)}
+                                className="p-1.5 rounded-lg text-slate-500 active:text-red-400"
+                                aria-label="Sil"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
 
-            {/* Paused Subscriptions */}
+            {/* Paused */}
             {pausedSubs.length > 0 && (
-              <>
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              <div className="mt-2">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                   Duraklatılmış
                 </h2>
                 <div className="space-y-2">
@@ -362,7 +415,7 @@ export default function Subscriptions() {
                     const cat = categories.find((c) => c.id === sub.categoryId);
 
                     return (
-                      <div key={sub.id} className="bg-slate-800/60 rounded-xl p-3.5 flex items-center gap-3 opacity-60">
+                      <div key={sub.id} className="bg-slate-800/60 rounded-xl p-3.5 flex items-center gap-3 opacity-50">
                         <span className="text-xl shrink-0">{sub.icon || cat?.icon || "📋"}</span>
 
                         <div className="flex-1 min-w-0">
@@ -372,19 +425,17 @@ export default function Subscriptions() {
 
                         <p className="text-sm text-slate-400 tabular-nums shrink-0">€{sub.amount.toFixed(2)}</p>
 
-                        <div className="flex gap-1 shrink-0">
+                        <div className="flex gap-0.5 shrink-0">
                           <button
                             onClick={() => toggleActive(sub)}
-                            className="p-1.5 rounded-lg text-slate-500 active:text-green-400
-                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400"
+                            className="p-1.5 rounded-lg text-slate-500 active:text-green-400"
                             aria-label="Devam ettir"
                           >
                             <Play className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(sub.id)}
-                            className="p-1.5 rounded-lg text-slate-500 active:text-red-400
-                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                            className="p-1.5 rounded-lg text-slate-500 active:text-red-400"
                             aria-label="Sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -394,7 +445,7 @@ export default function Subscriptions() {
                     );
                   })}
                 </div>
-              </>
+              </div>
             )}
           </>
         )}
