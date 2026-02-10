@@ -36,10 +36,24 @@ export interface Budget {
   alertThreshold: number;
 }
 
+export type BillingCycle = "monthly" | "yearly";
+
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  categoryId: string;
+  cycle: BillingCycle;
+  startDate: string; // YYYY-MM-DD
+  isActive: boolean;
+  icon?: string;
+}
+
 class AppDB extends Dexie {
   categories!: Table<Category, string>;
   receipts!: Table<Receipt, string>;
   budgets!: Table<Budget, number>;
+  subscriptions!: Table<Subscription, string>;
 
   constructor() {
     super("ReceiptBudgetDB");
@@ -47,6 +61,12 @@ class AppDB extends Dexie {
       categories: "id",
       receipts: "id, createdAt, receiptDate",
       budgets: "++id, [month+categoryId]",
+    });
+    this.version(2).stores({
+      categories: "id",
+      receipts: "id, createdAt, receiptDate",
+      budgets: "++id, [month+categoryId]",
+      subscriptions: "id, categoryId, isActive",
     });
   }
 }

@@ -7,6 +7,7 @@ import Scan from "./pages/Scan";
 import Review from "./pages/Review";
 import Budgets from "./pages/Budgets";
 import History from "./pages/History";
+import Subscriptions from "./pages/Subscriptions";
 import { seedCategories } from "./db/seed";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/scan" element={<Scan />} />
           <Route path="/review/:draftId" element={<Review />} />
+          <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/history" element={<History />} />
         </Routes>

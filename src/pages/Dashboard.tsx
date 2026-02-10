@@ -1,8 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../db";
+import { db, type BillingCycle } from "../db";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
-import { Camera, TrendingUp } from "lucide-react";
+import { Camera, TrendingUp, RefreshCw } from "lucide-react";
 import { DashboardSkeleton } from "../components/Skeleton";
 import PageTransition from "../components/PageTransition";
 import EmptyState from "../components/EmptyState";
@@ -14,6 +14,10 @@ function getPrevMonth(month: string) {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(y, m - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthlyAmount(amount: number, cycle: BillingCycle) {
+  return cycle === "yearly" ? amount / 12 : amount;
 }
 
 export default function Dashboard() {
@@ -29,11 +33,16 @@ export default function Dashboard() {
     [currentMonth],
   );
   const receipts = useLiveQuery(() => db.receipts.toArray());
+  const subscriptions = useLiveQuery(() =>
+    db.subscriptions.where("isActive").equals(1).toArray(),
+  );
 
-  const { spending, prevSpending, totalSpent } = useMemo(() => {
+  const { spending, prevSpending, totalSpent, subsTotal, subsSpending } = useMemo(() => {
     const spending = new Map<string, number>();
     const prevSpending = new Map<string, number>();
+    const subsSpending = new Map<string, number>();
     let totalSpent = 0;
+    let subsTotal = 0;
 
     if (receipts) {
       for (const r of receipts) {
@@ -51,10 +60,20 @@ export default function Dashboard() {
       }
     }
 
-    return { spending, prevSpending, totalSpent };
-  }, [receipts, currentMonth, prevMonth]);
+    if (subscriptions) {
+      for (const sub of subscriptions) {
+        const monthly = getMonthlyAmount(sub.amount, sub.cycle);
+        subsSpending.set(sub.categoryId, (subsSpending.get(sub.categoryId) || 0) + monthly);
+        spending.set(sub.categoryId, (spending.get(sub.categoryId) || 0) + monthly);
+        totalSpent += monthly;
+        subsTotal += monthly;
+      }
+    }
 
-  if (!categories || !budgets || !receipts) {
+    return { spending, prevSpending, totalSpent, subsTotal, subsSpending };
+  }, [receipts, subscriptions, currentMonth, prevMonth]);
+
+  if (!categories || !budgets || !receipts || !subscriptions) {
     return <DashboardSkeleton />;
   }
 
@@ -88,13 +107,15 @@ export default function Dashboard() {
     year: "numeric",
   });
 
+  const hasData = totalSpent > 0 || receipts.length > 0 || subscriptions.length > 0;
+
   return (
     <PageTransition>
       <div className="p-4 pb-6">
         <h1 className="text-2xl font-bold mb-1">Bu Ay</h1>
         <p className="text-slate-400 text-sm mb-4 capitalize">{monthLabel}</p>
 
-        {totalSpent === 0 && receipts.length === 0 ? (
+        {!hasData ? (
           <EmptyState
             icon={TrendingUp}
             title="Henüz harcama yok"
@@ -132,6 +153,27 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Subscriptions Summary */}
+            {subsTotal > 0 && (
+              <button
+                onClick={() => navigate("/subscriptions")}
+                className="w-full bg-slate-800 rounded-xl p-4 mb-5 flex items-center gap-3 text-left
+                  active:bg-slate-750 transition-colors
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                  <RefreshCw className="w-5 h-5 text-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Abonelikler</p>
+                  <p className="text-xs text-slate-400">
+                    {subscriptions.length} aktif abonelik
+                  </p>
+                </div>
+                <p className="text-sm font-semibold tabular-nums">€{subsTotal.toFixed(2)}/ay</p>
+              </button>
+            )}
+
             {/* Category Budget Breakdown */}
             <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
               Kategori Bütçeleri
@@ -139,6 +181,7 @@ export default function Dashboard() {
             <div className="space-y-2.5 mb-5">
               {categories.map((cat) => {
                 const spent = spending.get(cat.id) || 0;
+                const subAmt = subsSpending.get(cat.id) || 0;
                 const budget = budgets.find((b) => b.categoryId === cat.id);
                 const limit = budget?.limitAmount || 0;
                 const ratio = limit > 0 ? spent / limit : 0;
@@ -157,6 +200,11 @@ export default function Dashboard() {
                         {limit > 0 ? ` / €${limit.toFixed(2)}` : ""}
                       </span>
                     </div>
+                    {subAmt > 0 && (
+                      <p className="text-[10px] text-purple-400 mb-1">
+                        abonelik: €{subAmt.toFixed(2)} dahil
+                      </p>
+                    )}
                     {limit > 0 && (
                       <div className="relative">
                         <div className="w-full bg-slate-700 rounded-full h-2">
