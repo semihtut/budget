@@ -66,7 +66,7 @@ export default function Scan() {
         createdAt: new Date().toISOString(),
         merchantName: parsed.merchantName,
         receiptDate: parsed.receiptDate,
-        currency: parsed.currency || "TRY",
+        currency: parsed.currency || "EUR",
         total: parsed.total,
         taxTotal: parsed.taxTotal,
         items,

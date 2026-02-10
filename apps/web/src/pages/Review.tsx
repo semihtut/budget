@@ -56,12 +56,12 @@ export default function Review() {
         </p>
         <p>
           <span className="text-slate-400">Toplam:</span>{" "}
-          {receipt.total != null ? `₺${receipt.total.toFixed(2)}` : "—"}
+          {receipt.total != null ? `€${receipt.total.toFixed(2)}` : "—"}
         </p>
         {receipt.taxTotal != null && (
           <p>
             <span className="text-slate-400">KDV:</span>{" "}
-            ₺{receipt.taxTotal.toFixed(2)}
+            €{receipt.taxTotal.toFixed(2)}
           </p>
         )}
         <p>
@@ -89,13 +89,13 @@ export default function Review() {
           <div key={idx} className="bg-slate-800 rounded-xl p-3 space-y-2">
             <div className="flex justify-between">
               <span className="font-medium text-sm">{item.name}</span>
-              <span className="text-sm">₺{item.lineTotal.toFixed(2)}</span>
+              <span className="text-sm">€{item.lineTotal.toFixed(2)}</span>
             </div>
             {item.quantity != null && (
               <p className="text-xs text-slate-400">
                 {item.quantity} adet
                 {item.unitPrice != null
-                  ? ` × ₺${item.unitPrice.toFixed(2)}`
+                  ? ` × €${item.unitPrice.toFixed(2)}`
                   : ""}
               </p>
             )}

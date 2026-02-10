@@ -38,7 +38,7 @@ export default function Dashboard() {
       <div className="bg-slate-800 rounded-xl p-4 mb-6">
         <p className="text-slate-400 text-sm">Toplam Harcama</p>
         <p className="text-3xl font-bold">
-          ₺{totalSpent.toFixed(2)}
+          €{totalSpent.toFixed(2)}
         </p>
       </div>
 
@@ -58,8 +58,8 @@ export default function Dashboard() {
                   {cat.icon} {cat.name}
                 </span>
                 <span className={isWarning ? "text-red-400 font-bold" : ""}>
-                  ₺{spent.toFixed(2)}
-                  {limit > 0 ? ` / ₺${limit.toFixed(2)}` : ""}
+                  €{spent.toFixed(2)}
+                  {limit > 0 ? ` / €${limit.toFixed(2)}` : ""}
                 </span>
               </div>
               {limit > 0 && (

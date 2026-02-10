@@ -48,7 +48,7 @@ export default function History() {
                   {r.merchantName || "Bilinmeyen"}
                 </span>
                 <span>
-                  {r.total != null ? `₺${r.total.toFixed(2)}` : "—"}
+                  {r.total != null ? `€${r.total.toFixed(2)}` : "—"}
                 </span>
               </div>
               <p className="text-sm text-slate-400 mt-1">

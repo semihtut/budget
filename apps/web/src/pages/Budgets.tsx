@@ -70,7 +70,7 @@ export default function Budgets() {
               {cat.icon} {cat.name}
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">₺</span>
+              <span className="text-slate-500">€</span>
               <input
                 type="number"
                 inputMode="decimal"
