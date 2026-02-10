@@ -32,7 +32,7 @@ export default function Subscriptions() {
   const [icon, setIcon] = useState("");
   const [amount, setAmount] = useState("");
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
-  const [categoryId, setCategoryId] = useState("bills");
+  const [categoryId, setCategoryId] = useState("subscriptions");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   if (!subscriptions || !categories) {
@@ -44,7 +44,7 @@ export default function Subscriptions() {
     setIcon("");
     setAmount("");
     setCycle("monthly");
-    setCategoryId("bills");
+    setCategoryId("subscriptions");
     setEditId(null);
     setShowForm(false);
   }

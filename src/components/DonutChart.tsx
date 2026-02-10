@@ -18,6 +18,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   transport: "#10b981",
   health: "#ef4444",
   entertainment: "#8b5cf6",
+  subscriptions: "#d946ef",
   bills: "#06b6d4",
   other: "#6b7280",
 };
