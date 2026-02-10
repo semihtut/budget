@@ -2,7 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Subscription, type BillingCycle } from "../db";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Plus, Trash2, Pause, Play, Pencil, X, PiggyBank } from "lucide-react";
+import { Plus, Trash2, Pause, Play, Pencil, X, CalendarClock } from "lucide-react";
 import PageTransition from "../components/PageTransition";
 import EmptyState from "../components/EmptyState";
 import Button from "../components/Button";
@@ -300,7 +300,7 @@ export default function Subscriptions() {
         {/* Empty state */}
         {subscriptions.length === 0 && !showForm ? (
           <EmptyState
-            icon={PiggyBank}
+            icon={CalendarClock}
             title="Henüz sabit gider yok"
             description="Abonelik, fatura ve düzenli ödemelerinizi ekleyin"
             action={

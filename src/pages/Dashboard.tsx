@@ -2,7 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type BillingCycle } from "../db";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
-import { Camera, TrendingUp, PiggyBank } from "lucide-react";
+import { Camera, TrendingUp, CalendarClock } from "lucide-react";
 import { DashboardSkeleton } from "../components/Skeleton";
 import PageTransition from "../components/PageTransition";
 import EmptyState from "../components/EmptyState";
@@ -162,7 +162,7 @@ export default function Dashboard() {
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               >
                 <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
-                  <PiggyBank className="w-5 h-5 text-purple-400" />
+                  <CalendarClock className="w-5 h-5 text-purple-400" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">Sabit Giderler</p>
