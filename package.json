@@ -6,5 +6,14 @@
     "dev:api": "pnpm --filter api dev",
     "build:web": "pnpm --filter web build",
     "install:all": "pnpm install"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.12.0",
+    "formidable": "^3.5.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.2.0",
+    "@types/formidable": "^3.4.5"
   }
 }

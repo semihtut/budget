@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd apps/web && pnpm build",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "pnpm install",
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 256,
+      "maxDuration": 30
+    }
+  }
+}
