@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import Review from "./pages/Review";
@@ -14,14 +15,16 @@ export default function App() {
   }, []);
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/scan" element={<Scan />} />
-        <Route path="/review/:draftId" element={<Review />} />
-        <Route path="/budgets" element={<Budgets />} />
-        <Route path="/history" element={<History />} />
-      </Routes>
-    </Layout>
+    <ErrorBoundary>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/review/:draftId" element={<Review />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/history" element={<History />} />
+        </Routes>
+      </Layout>
+    </ErrorBoundary>
   );
 }

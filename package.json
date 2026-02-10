@@ -8,21 +8,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.12.0",
+    "dexie": "^4.0.4",
+    "dexie-react-hooks": "^1.1.7",
+    "formidable": "^3.5.1",
+    "framer-motion": "^12.34.0",
+    "lucide-react": "^0.563.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1",
-    "dexie": "^4.0.4",
-    "dexie-react-hooks": "^1.1.7",
     "uuid": "^9.0.1",
-    "@google/generative-ai": "^0.12.0",
-    "formidable": "^3.5.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/formidable": "^3.4.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/uuid": "^9.0.8",
-    "@types/formidable": "^3.4.5",
     "@vercel/node": "^3.2.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",

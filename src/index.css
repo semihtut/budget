@@ -4,6 +4,7 @@
 
 :root {
   -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
 }
 
 html,
@@ -14,6 +15,7 @@ body,
   padding: 0;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  font-variant-numeric: tabular-nums;
 }
 
 body {
@@ -36,10 +38,27 @@ video {
 
 /* Content area bottom padding to clear tab bar */
 .main-content {
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
-/* Scan FAB positioning */
-.fab-bottom {
-  bottom: calc(5rem + env(safe-area-inset-bottom));
+/* Select styling for iOS */
+select {
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Focus visible for all interactive elements */
+*:focus-visible {
+  outline: none;
+}
+
+/* Smooth image rotation */
+.rotate-smooth {
+  transition: transform 0.3s ease;
 }

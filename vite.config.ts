@@ -7,18 +7,20 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon-192.png", "icon-512.png"],
+      includeAssets: ["icon-192.png", "icon-512.png", "apple-touch-icon.png"],
       manifest: {
-        name: "Fis Butce Takip",
-        short_name: "FisButce",
-        description: "Fis tarayici ve butce takip uygulamasi",
+        name: "Fiş Bütçe Takip",
+        short_name: "FişBütçe",
+        description: "Fiş tarayıcı ve bütçe takip uygulaması",
         theme_color: "#1e293b",
         background_color: "#0f172a",
         display: "standalone",
+        orientation: "portrait",
         start_url: "/",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
