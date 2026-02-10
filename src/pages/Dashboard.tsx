@@ -28,10 +28,6 @@ export default function Dashboard() {
   const prevMonth = getPrevMonth(currentMonth);
 
   const categories = useLiveQuery(() => db.categories.toArray());
-  const budgets = useLiveQuery(
-    () => db.budgets.where("[month+categoryId]").between([currentMonth], [currentMonth + "\uffff"]).toArray(),
-    [currentMonth],
-  );
   const receipts = useLiveQuery(() => db.receipts.toArray());
   const subscriptions = useLiveQuery(() =>
     db.subscriptions.where("isActive").equals(1).toArray(),
@@ -73,11 +69,9 @@ export default function Dashboard() {
     return { spending, prevSpending, totalSpent, subsTotal, subsSpending };
   }, [receipts, subscriptions, currentMonth, prevMonth]);
 
-  if (!categories || !budgets || !receipts || !subscriptions) {
+  if (!categories || !receipts || !subscriptions) {
     return <DashboardSkeleton />;
   }
-
-  const totalBudget = budgets.reduce((sum, b) => sum + b.limitAmount, 0);
 
   const donutSegments = categories
     .map((cat) => ({
@@ -95,12 +89,6 @@ export default function Dashboard() {
     current: spending.get(cat.id) || 0,
     previous: prevSpending.get(cat.id) || 0,
   }));
-
-  function getBarColor(ratio: number) {
-    if (ratio >= 0.8) return "bg-red-500";
-    if (ratio >= 0.6) return "bg-yellow-500";
-    return "bg-green-500";
-  }
 
   const monthLabel = new Date(now.getFullYear(), now.getMonth()).toLocaleDateString("tr-TR", {
     month: "long",
@@ -135,22 +123,6 @@ export default function Dashboard() {
             {/* Donut Chart */}
             <div className="bg-slate-800 rounded-xl p-5 mb-5">
               <DonutChart segments={donutSegments} total={totalSpent} />
-              {totalBudget > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-700">
-                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-                    <span>Bütçe kullanımı</span>
-                    <span className="tabular-nums">
-                      €{totalSpent.toFixed(2)} / €{totalBudget.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2.5">
-                    <div
-                      className={`h-2.5 rounded-full transition-all duration-700 ${getBarColor(totalBudget > 0 ? totalSpent / totalBudget : 0)}`}
-                      style={{ width: `${Math.min((totalSpent / totalBudget) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Fixed Costs Summary */}
@@ -174,20 +146,18 @@ export default function Dashboard() {
               </button>
             )}
 
-            {/* Category Budget Breakdown */}
+            {/* Category Spending Breakdown */}
             <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Kategori Bütçeleri
+              Kategori Harcamaları
             </h2>
             <div className="space-y-2.5 mb-5">
               {categories.map((cat) => {
                 const spent = spending.get(cat.id) || 0;
                 const subAmt = subsSpending.get(cat.id) || 0;
-                const budget = budgets.find((b) => b.categoryId === cat.id);
-                const limit = budget?.limitAmount || 0;
-                const ratio = limit > 0 ? spent / limit : 0;
-                const pct = Math.min(ratio * 100, 100);
 
-                if (spent === 0 && limit === 0) return null;
+                if (spent === 0) return null;
+
+                const pctOfTotal = totalSpent > 0 ? (spent / totalSpent) * 100 : 0;
 
                 return (
                   <div key={cat.id} className="bg-slate-800 rounded-xl p-3.5">
@@ -195,29 +165,29 @@ export default function Dashboard() {
                       <span className="text-sm font-medium">
                         {cat.icon} {cat.name}
                       </span>
-                      <span className={`text-sm tabular-nums ${ratio >= 0.8 ? "text-red-400 font-bold" : ""}`}>
+                      <span className="text-sm tabular-nums">
                         €{spent.toFixed(2)}
-                        {limit > 0 ? ` / €${limit.toFixed(2)}` : ""}
                       </span>
                     </div>
                     {subAmt > 0 && (
                       <p className="text-[10px] text-purple-400 mb-1">
-                        abonelik: €{subAmt.toFixed(2)} dahil
+                        sabit gider: €{subAmt.toFixed(2)} dahil
                       </p>
                     )}
-                    {limit > 0 && (
-                      <div className="relative">
-                        <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-500 ${getBarColor(ratio)}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="absolute right-0 -top-4 text-[10px] text-slate-500 tabular-nums">
-                          %{pct.toFixed(0)}
-                        </span>
+                    <div className="relative">
+                      <div className="w-full bg-slate-700 rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${pctOfTotal}%`,
+                            backgroundColor: getCategoryColor(cat.id),
+                          }}
+                        />
                       </div>
-                    )}
+                      <span className="absolute right-0 -top-4 text-[10px] text-slate-500 tabular-nums">
+                        %{pctOfTotal.toFixed(0)}
+                      </span>
+                    </div>
                   </div>
                 );
               })}

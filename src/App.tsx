@@ -5,7 +5,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import Review from "./pages/Review";
-import Budgets from "./pages/Budgets";
 import History from "./pages/History";
 import Subscriptions from "./pages/Subscriptions";
 import { seedCategories } from "./db/seed";
@@ -23,7 +22,6 @@ export default function App() {
           <Route path="/scan" element={<Scan />} />
           <Route path="/review/:draftId" element={<Review />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
-          <Route path="/budgets" element={<Budgets />} />
           <Route path="/history" element={<History />} />
         </Routes>
       </Layout>

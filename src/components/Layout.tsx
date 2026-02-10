@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
-import { Home, Camera, Wallet, ClipboardList, CalendarClock } from "lucide-react";
+import { Home, Camera, CalendarClock, ClipboardList } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import OfflineBanner from "./OfflineBanner";
 
@@ -8,7 +8,6 @@ const tabs = [
   { to: "/", label: "Ana Sayfa", icon: Home },
   { to: "/scan", label: "Tara", icon: Camera },
   { to: "/subscriptions", label: "Sabit", icon: CalendarClock },
-  { to: "/budgets", label: "Bütçe", icon: Wallet },
   { to: "/history", label: "Geçmiş", icon: ClipboardList },
 ];
 
