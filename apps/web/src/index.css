@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Bottom tab bar safe-area */
+.tab-bar {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Content area bottom padding to clear tab bar */
+.main-content {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Scan FAB positioning */
+.fab-bottom {
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+}

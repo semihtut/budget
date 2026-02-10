@@ -1,0 +1,10 @@
+{
+  "name": "receipt-budget-pwa",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "build:web": "pnpm --filter web build",
+    "install:all": "pnpm install"
+  }
+}

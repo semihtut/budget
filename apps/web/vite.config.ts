@@ -1,0 +1,34 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["icon-192.png", "icon-512.png"],
+      manifest: {
+        name: "Fis Butce Takip",
+        short_name: "FisButce",
+        description: "Fis tarayici ve butce takip uygulamasi",
+        theme_color: "#1e293b",
+        background_color: "#0f172a",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          { src: "icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+      },
+    }),
+  ],
+  server: {
+    proxy: {
+      "/api": "http://localhost:3001",
+    },
+  },
+});
