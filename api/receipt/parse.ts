@@ -87,7 +87,7 @@ export default async function handler(
     const base64 = imageBuffer.toString("base64");
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
 
     const prompt = `Sen bir fis/fatura OCR asistanisin. Bu gorseldeki fisi analiz et ve asagidaki JSON formatinda dondur. Sadece JSON dondur, baska aciklama yazma.
 
