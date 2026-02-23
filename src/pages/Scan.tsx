@@ -103,7 +103,7 @@ export default function Scan() {
       const compressed = await compressImage(file);
       const form = new FormData();
       form.append("image", compressed);
-      form.append("locale", "tr-TR");
+      form.append("locale", "fi-FI");
 
       const res = await fetch("/api/receipt/parse", {
         method: "POST",

@@ -67,7 +67,7 @@ function parseForm(req: VercelRequest): Promise<{ file: formidable.File; locale:
       if (err) return reject(err);
       const file = Array.isArray(files.image) ? files.image[0] : files.image;
       if (!file) return reject(new Error("image alani gerekli"));
-      const locale = (Array.isArray(fields.locale) ? fields.locale[0] : fields.locale) || "tr-TR";
+      const locale = (Array.isArray(fields.locale) ? fields.locale[0] : fields.locale) || "fi-FI";
       resolve({ file: file as formidable.File, locale: locale as string });
     });
   });
@@ -80,9 +80,39 @@ const DATE_PATTERNS = [
   /(\d{4})-(\d{2})-(\d{2})/,
   /(\d{2})[\/\.\-](\d{2})[\/\.\-](\d{2})\b/,
 ];
-const TOTAL_KW = [/toplam/i, /total/i, /genel\s*toplam/i, /g\.?\s*toplam/i, /nakit/i, /ödeme/i, /tutar/i, /yekun/i];
-const TAX_KW = [/kdv/i, /tax/i, /vergi/i, /topkdv/i];
-const SKIP_KW = [/toplam/i, /total/i, /kdv/i, /tax/i, /vergi/i, /nakit/i, /ödeme/i, /tutar/i, /yekun/i, /fiş\s*no/i, /tarih/i, /kasa/i, /saat/i, /kasiyer/i, /eft\s*pos/i, /visa/i, /mastercard/i, /banka/i, /kart/i, /pos/i, /iade/i, /teşekkür/i, /iyi\s*günler/i, /hoş\s*geldiniz/i];
+const TOTAL_KW = [
+  // Turkish
+  /toplam/i, /total/i, /genel\s*toplam/i, /g\.?\s*toplam/i, /nakit/i, /ödeme/i, /tutar/i, /yekun/i,
+  // Finnish
+  /yhteens[äa]/i, /summa/i, /maksettava/i, /korttimaksu/i, /k[äa]teinen/i,
+  /pankkikortti/i, /maksettu/i, /yhteensa/i,
+  // English
+  /subtotal/i, /grand\s*total/i, /amount\s*due/i, /balance\s*due/i,
+];
+const TAX_KW = [
+  // Turkish
+  /kdv/i, /vergi/i, /topkdv/i,
+  // Finnish
+  /alv/i, /vero/i, /alv\s*\d/i,
+  // English
+  /tax/i, /vat/i,
+];
+const SKIP_KW = [
+  // Turkish
+  /toplam/i, /total/i, /kdv/i, /tax/i, /vergi/i, /nakit/i, /ödeme/i, /tutar/i, /yekun/i,
+  /fiş\s*no/i, /tarih/i, /kasa/i, /saat/i, /kasiyer/i, /eft\s*pos/i,
+  /visa/i, /mastercard/i, /banka/i, /kart/i, /pos/i, /iade/i,
+  /teşekkür/i, /iyi\s*günler/i, /hoş\s*geldiniz/i,
+  // Finnish
+  /yhteens[äa]/i, /summa/i, /alv/i, /vero/i, /maksettava/i, /k[äa]teinen/i,
+  /kuitti\s*n/i, /kuitti/i, /pvm/i, /klo/i, /kello/i, /myy?j[äa]/i,
+  /pankkikortti/i, /korttimaksu/i, /maksettu/i, /vaihto\s*raha/i,
+  /kiitos/i, /tervetuloa/i, /palveluksessanne/i,
+  /y[\-\s]*tunnus/i, /asiakas/i, /viite/i, /ean/i, /bonus/i,
+  // English
+  /subtotal/i, /change/i, /cash/i, /card/i, /vat/i,
+  /thank\s*you/i, /receipt/i, /cashier/i,
+];
 
 function extractNumber(text: string): number | null {
   const cleaned = text.replace(/\s/g, "");
@@ -95,9 +125,16 @@ function extractNumber(text: string): number | null {
 
 function extractPrice(line: string): number | null {
   const pp = [
+    // Turkish/Finnish format: 12,50 or 1.234,50 optionally with currency
     /[*%]?\s*(\d{1,3}(?:\.\d{3})*[,]\d{2})\s*(?:TL|₺|EUR|€|USD|\$)?\s*$/i,
+    // Standard format: 12.50 optionally with currency
     /[*%]?\s*(\d+[.]\d{2})\s*(?:TL|₺|EUR|€|USD|\$)?\s*$/i,
+    // Currency prefix: €12.50 or EUR 12,50
     /(?:TL|₺|EUR|€|USD|\$)\s*(\d{1,3}(?:[.,]\d{2,3})*)\s*$/i,
+    // Finnish: price followed by letter suffix like "A" or "B" (VAT rate indicator)
+    /(\d{1,3}(?:\.\d{3})*[,]\d{2})\s*[A-E]\s*$/i,
+    // Bare decimal at end of line (common in Finnish receipts): 2,49 or 12,90
+    /\s(\d{1,6}[,]\d{2})\s*$/,
   ];
   for (const p of pp) { const m = line.match(p); if (m) return extractNumber(m[1]); }
   return null;
@@ -126,11 +163,15 @@ function parseReceiptText(fullText: string) {
     if (!l || l.length < 2) continue;
     if (/^\d+$/.test(l.replace(/[\s\-\/\.]/g, ""))) continue;
     if (DATE_PATTERNS.some(p => p.test(l))) continue;
+    // Skip address-like lines (Turkish & Finnish)
+    if (/sokak|cadde|mah|apt\b/i.test(l)) continue;
+    if (/^(?:puh|tel|fax|gsm)[\s.:]/i.test(l)) continue;
+    if (/y[\-\s]*tunnus/i.test(l)) continue;
     merchantName = l; break;
   }
 
   const receiptDate = extractDate(fullText);
-  const currency = /₺|TL\b/i.test(fullText) ? "TRY" : /€|EUR\b/i.test(fullText) ? "EUR" : /\$|USD\b/i.test(fullText) ? "USD" : null;
+  const currency = /₺|TL\b/i.test(fullText) ? "TRY" : /€|EUR\b/i.test(fullText) ? "EUR" : /£|GBP\b/i.test(fullText) ? "GBP" : /\$|USD\b/i.test(fullText) ? "USD" : "EUR";
 
   let total: number | null = null;
   for (const line of lines) { for (const kw of TOTAL_KW) { if (kw.test(line)) { const n = extractNumber(line); if (n !== null && (total === null || n > total)) total = n; } } }
@@ -148,15 +189,23 @@ function parseReceiptText(fullText: string) {
 
     const price = extractPrice(line);
     if (price !== null && price > 0) {
-      let name = line.replace(/[*%]\s*\d.*$/, "").replace(/\d{1,3}(?:\.\d{3})*[,]\d{2}\s*(?:TL|₺|EUR|€|USD|\$)?$/i, "").replace(/\d+[.]\d{2}\s*(?:TL|₺|EUR|€|USD|\$)?$/i, "").trim();
+      let name = line
+        .replace(/[*%]\s*\d.*$/, "")
+        .replace(/\d{1,3}(?:\.\d{3})*[,]\d{2}\s*[A-E]?\s*(?:TL|₺|EUR|€|USD|\$)?\s*$/i, "")
+        .replace(/\d+[.]\d{2}\s*(?:TL|₺|EUR|€|USD|\$)?\s*$/i, "")
+        .replace(/(?:TL|₺|EUR|€|USD|\$)\s*\d.*$/i, "")
+        .trim();
       let quantity: number | null = null;
       let unitPrice: number | null = null;
       const q1 = name.match(/^(\d+)\s*[xX*]\s*/);
       const q2 = name.match(/\s*[xX*]\s*(\d+)$/);
-      const q3 = name.match(/^(\d+)\s*(?:AD|ad|adet)\s+/i);
+      const q3 = name.match(/^(\d+)\s*(?:AD|ad|adet|kpl|st)\s+/i);
+      // Finnish: "2 kpl" (kappaletta = pieces) or "1,500 kg"
+      const q4 = name.match(/^(\d+(?:[.,]\d+)?)\s*(?:kpl|kg|l|ltr|pkt|pss|rs|prk|tlk)\s+/i);
       if (q1) { quantity = parseInt(q1[1]); name = name.replace(q1[0], "").trim(); unitPrice = price / quantity; }
       else if (q2) { quantity = parseInt(q2[1]); name = name.replace(q2[0], "").trim(); unitPrice = price / quantity; }
       else if (q3) { quantity = parseInt(q3[1]); name = name.replace(q3[0], "").trim(); unitPrice = price / quantity; }
+      else if (q4) { quantity = parseFloat(q4[1].replace(",", ".")); name = name.replace(q4[0], "").trim(); unitPrice = price / quantity; }
       if (name.length >= 1) items.push({ name, quantity, unitPrice, lineTotal: price, rawText: line });
     }
   }
@@ -219,7 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           requests: [{
             image: { content: base64Image },
             features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
-            imageContext: { languageHints: [locale === "tr-TR" ? "tr" : "en"] },
+            imageContext: { languageHints: [locale === "fi-FI" ? "fi" : locale === "tr-TR" ? "tr" : "en"] },
           }],
         }),
       });
@@ -248,7 +297,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      return res.status(200).json({ parsedReceipt: parseReceiptText(fullText) });
+      const parsed = parseReceiptText(fullText);
+      return res.status(200).json({ parsedReceipt: parsed, rawText: fullText });
     } finally {
       try { unlinkSync(file!.filepath); } catch { /* ignore */ }
     }
