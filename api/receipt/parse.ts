@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import * as formidable from "formidable";
-import type { Fields, Files } from "formidable";
-import * as fs from "fs";
-import * as crypto from "crypto";
+import formidable, { type Fields, type Files } from "formidable";
+import fs from "fs";
+import crypto from "crypto";
 import { parseReceiptText } from "./parseText";
 
 export const config = {
@@ -74,7 +73,7 @@ function parseForm(
   req: VercelRequest,
 ): Promise<{ file: formidable.File; locale: string }> {
   return new Promise((resolve, reject) => {
-    const form = (formidable as any)({ maxFileSize: MAX_FILE_SIZE });
+    const form = formidable({ maxFileSize: MAX_FILE_SIZE });
     form.parse(req, (err: Error | null, fields: Fields, files: Files) => {
       if (err) return reject(err);
       const file = Array.isArray(files.image) ? files.image[0] : files.image;
