@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { GoogleAuth } from "google-auth-library";
-import formidable, { type Fields, type Files } from "formidable";
-import fs from "fs";
+import * as formidable from "formidable";
+import type { Fields, Files } from "formidable";
+import * as fs from "fs";
+import * as crypto from "crypto";
 import { parseReceiptText } from "./parseText";
 
 export const config = {
@@ -18,6 +19,13 @@ const ALLOWED_MIMES = [
 
 const VISION_API_URL =
   "https://vision.googleapis.com/v1/images:annotate";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SCOPE = "https://www.googleapis.com/auth/cloud-vision";
+
+function base64url(input: Buffer | string): string {
+  const buf = typeof input === "string" ? Buffer.from(input) : input;
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
 
 async function getAccessToken(): Promise<string> {
   const credentialsBase64 = process.env.GOOGLE_CREDENTIALS_BASE64;
@@ -25,30 +33,48 @@ async function getAccessToken(): Promise<string> {
     throw new Error("GOOGLE_CREDENTIALS_BASE64 tanimli degil");
   }
 
-  const credentials = JSON.parse(
+  const creds = JSON.parse(
     Buffer.from(credentialsBase64, "base64").toString("utf-8"),
   );
 
-  const auth = new GoogleAuth({
-    credentials: {
-      client_email: credentials.client_email,
-      private_key: credentials.private_key,
-    },
-    scopes: ["https://www.googleapis.com/auth/cloud-vision"],
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64url(
+    JSON.stringify({
+      iss: creds.client_email,
+      scope: SCOPE,
+      aud: TOKEN_URL,
+      iat: now,
+      exp: now + 3600,
+    }),
+  );
+
+  const signInput = `${header}.${payload}`;
+  const sign = crypto.createSign("RSA-SHA256");
+  sign.update(signInput);
+  const signature = base64url(sign.sign(creds.private_key));
+  const jwt = `${signInput}.${signature}`;
+
+  const tokenRes = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
 
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  const token = tokenResponse?.token;
-  if (!token) throw new Error("Access token alinamadi");
-  return token;
+  if (!tokenRes.ok) {
+    const errText = await tokenRes.text();
+    throw new Error(`Token alinamadi: ${tokenRes.status} ${errText}`);
+  }
+
+  const tokenData = await tokenRes.json();
+  return tokenData.access_token;
 }
 
 function parseForm(
   req: VercelRequest,
 ): Promise<{ file: formidable.File; locale: string }> {
   return new Promise((resolve, reject) => {
-    const form = formidable({ maxFileSize: MAX_FILE_SIZE });
+    const form = (formidable as any)({ maxFileSize: MAX_FILE_SIZE });
     form.parse(req, (err: Error | null, fields: Fields, files: Files) => {
       if (err) return reject(err);
       const file = Array.isArray(files.image) ? files.image[0] : files.image;
