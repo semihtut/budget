@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import vision from "@google-cloud/vision";
+import { GoogleAuth } from "google-auth-library";
 import formidable, { type Fields, type Files } from "formidable";
 import fs from "fs";
 import { parseReceiptText } from "./parseText";
@@ -16,7 +16,10 @@ const ALLOWED_MIMES = [
   "image/heif",
 ];
 
-function getVisionClient(): vision.ImageAnnotatorClient {
+const VISION_API_URL =
+  "https://vision.googleapis.com/v1/images:annotate";
+
+async function getAccessToken(): Promise<string> {
   const credentialsBase64 = process.env.GOOGLE_CREDENTIALS_BASE64;
   if (!credentialsBase64) {
     throw new Error("GOOGLE_CREDENTIALS_BASE64 tanimli degil");
@@ -26,13 +29,19 @@ function getVisionClient(): vision.ImageAnnotatorClient {
     Buffer.from(credentialsBase64, "base64").toString("utf-8"),
   );
 
-  return new vision.ImageAnnotatorClient({
+  const auth = new GoogleAuth({
     credentials: {
       client_email: credentials.client_email,
       private_key: credentials.private_key,
     },
-    projectId: credentials.project_id,
+    scopes: ["https://www.googleapis.com/auth/cloud-vision"],
   });
+
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  const token = tokenResponse?.token;
+  if (!token) throw new Error("Access token alinamadi");
+  return token;
 }
 
 function parseForm(
@@ -85,19 +94,45 @@ export default async function handler(
 
   try {
     const imageBuffer = fs.readFileSync(file.filepath);
+    const base64Image = imageBuffer.toString("base64");
 
-    const client = getVisionClient();
+    const accessToken = await getAccessToken();
 
-    const [result] = await client.documentTextDetection({
-      image: { content: imageBuffer },
-      imageContext: {
-        languageHints: [locale === "tr-TR" ? "tr" : "en"],
+    const visionResponse = await fetch(VISION_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        requests: [
+          {
+            image: { content: base64Image },
+            features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+            imageContext: {
+              languageHints: [locale === "tr-TR" ? "tr" : "en"],
+            },
+          },
+        ],
+      }),
     });
 
+    if (!visionResponse.ok) {
+      const errBody = await visionResponse.text();
+      console.error("Vision API HTTP error:", visionResponse.status, errBody);
+      throw new Error(`Vision API hatasi: ${visionResponse.status}`);
+    }
+
+    const visionData = await visionResponse.json();
+    const annotation = visionData.responses?.[0];
+
+    if (annotation?.error) {
+      throw new Error(annotation.error.message || "Vision API hatasi");
+    }
+
     const fullText =
-      result.fullTextAnnotation?.text ||
-      result.textAnnotations?.[0]?.description ||
+      annotation?.fullTextAnnotation?.text ||
+      annotation?.textAnnotations?.[0]?.description ||
       "";
 
     if (!fullText.trim()) {
