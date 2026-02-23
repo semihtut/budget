@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable, { type Fields, type Files } from "formidable";
-import fs from "fs";
-import crypto from "crypto";
+import { readFileSync, unlinkSync } from "node:fs";
+import { createSign } from "node:crypto";
 
 export const config = {
   api: { bodyParser: false },
@@ -38,7 +38,7 @@ async function getAccessToken(): Promise<string> {
   }));
 
   const signInput = `${header}.${payload}`;
-  const sign = crypto.createSign("RSA-SHA256");
+  const sign = createSign("RSA-SHA256");
   sign.update(signInput);
   const signature = base64url(sign.sign(creds.private_key));
   const jwt = `${signInput}.${signature}`;
@@ -181,6 +181,10 @@ function parseReceiptText(fullText: string) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Top-level try to always return JSON
   try {
+    if (req.method === "GET") {
+      return res.status(200).json({ status: "ok", hasCredentials: !!process.env.GOOGLE_CREDENTIALS_BASE64 });
+    }
+
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Sadece POST desteklenir" });
     }
@@ -204,7 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const imageBuffer = fs.readFileSync(file.filepath);
+      const imageBuffer = readFileSync(file.filepath);
       const base64Image = imageBuffer.toString("base64");
       const accessToken = await getAccessToken();
 
@@ -246,7 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(200).json({ parsedReceipt: parseReceiptText(fullText) });
     } finally {
-      try { fs.unlinkSync(file!.filepath); } catch { /* ignore */ }
+      try { unlinkSync(file!.filepath); } catch { /* ignore */ }
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Bilinmeyen hata";
