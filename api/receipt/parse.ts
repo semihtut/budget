@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable, { type Fields, type Files } from "formidable";
-import { readFileSync, unlinkSync } from "node:fs";
-import { createSign } from "node:crypto";
+import { readFileSync, unlinkSync } from "fs";
+import { createSign } from "crypto";
 
 export const config = {
   api: { bodyParser: false },
