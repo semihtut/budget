@@ -13,6 +13,58 @@ const PARSE_STEPS = [
   "Kalemler çıkarılıyor...",
 ];
 
+const MAX_UPLOAD_SIZE = 3.5 * 1024 * 1024; // 3.5 MB (Vercel limit ~4.5MB)
+const MAX_DIMENSION = 2048;
+
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    // If already small enough, skip compression
+    if (file.size <= MAX_UPLOAD_SIZE && !file.type.includes("heic")) {
+      return resolve(file);
+    }
+
+    const img = new window.Image();
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Scale down if too large
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas desteklenmiyor"));
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Start with quality 0.8, reduce until under limit
+      let quality = 0.8;
+      const tryCompress = () => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Sıkıştırma başarısız"));
+            if (blob.size > MAX_UPLOAD_SIZE && quality > 0.3) {
+              quality -= 0.15;
+              tryCompress();
+            } else {
+              resolve(new File([blob], "receipt.jpg", { type: "image/jpeg" }));
+            }
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+      tryCompress();
+    };
+    img.onerror = () => reject(new Error("Görüntü yüklenemedi"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function Scan() {
   const navigate = useNavigate();
   const cameraId = "camera-input";
@@ -48,8 +100,9 @@ export default function Scan() {
     }, 1500);
 
     try {
+      const compressed = await compressImage(file);
       const form = new FormData();
-      form.append("image", file);
+      form.append("image", compressed);
       form.append("locale", "tr-TR");
 
       const res = await fetch("/api/receipt/parse", {
