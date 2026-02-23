@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { guessCategory } from "../utils/categorize";
-import { Camera, RotateCw, Upload, AlertCircle } from "lucide-react";
+import { Camera, Image, RotateCw, Upload, AlertCircle } from "lucide-react";
 import PageTransition from "../components/PageTransition";
 import Button from "../components/Button";
 
@@ -15,7 +15,8 @@ const PARSE_STEPS = [
 
 export default function Scan() {
   const navigate = useNavigate();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraId = "camera-input";
+  const galleryId = "gallery-input";
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -104,23 +105,40 @@ export default function Scan() {
         <h1 className="text-2xl font-bold mb-4">Fiş Tara</h1>
 
         <input
-          ref={fileRef}
+          id={cameraId}
           type="file"
-          accept="image/jpeg,image/png,image/heic"
+          accept="image/*"
           capture="environment"
+          onChange={handleFile}
+          className="hidden"
+        />
+        <input
+          id={galleryId}
+          type="file"
+          accept="image/*"
           onChange={handleFile}
           className="hidden"
         />
 
         <div className="space-y-3">
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="w-full bg-slate-800 rounded-xl py-8 text-center border-2 border-dashed border-slate-600 active:border-blue-500 transition-colors
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-          >
-            <Camera className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-            <span className="text-slate-300">Fotoğraf Çek / Galeriden Seç</span>
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <label
+              htmlFor={cameraId}
+              className="bg-slate-800 rounded-xl py-6 text-center border-2 border-dashed border-slate-600 active:border-blue-500 transition-colors cursor-pointer
+                focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-400"
+            >
+              <Camera className="w-9 h-9 text-slate-400 mx-auto mb-2" />
+              <span className="text-slate-300 text-sm">Fotoğraf Çek</span>
+            </label>
+            <label
+              htmlFor={galleryId}
+              className="bg-slate-800 rounded-xl py-6 text-center border-2 border-dashed border-slate-600 active:border-green-500 transition-colors cursor-pointer
+                focus-within:outline-none focus-within:ring-2 focus-within:ring-green-400"
+            >
+              <Image className="w-9 h-9 text-slate-400 mx-auto mb-2" />
+              <span className="text-slate-300 text-sm">Galeriden Seç</span>
+            </label>
+          </div>
 
           {preview && (
             <div className="relative overflow-hidden rounded-xl bg-slate-800">

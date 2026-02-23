@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { z } from "zod";
+import vision from "@google-cloud/vision";
 import formidable, { type Fields, type Files } from "formidable";
 import fs from "fs";
+import { parseReceiptText } from "./parseText";
 
 export const config = {
   api: { bodyParser: false },
@@ -16,24 +16,24 @@ const ALLOWED_MIMES = [
   "image/heif",
 ];
 
-const ReceiptItemSchema = z.object({
-  name: z.string(),
-  quantity: z.number().nullable(),
-  unitPrice: z.number().nullable(),
-  lineTotal: z.number(),
-  rawText: z.string().nullable().optional(),
-});
+function getVisionClient(): vision.ImageAnnotatorClient {
+  const credentialsBase64 = process.env.GOOGLE_CREDENTIALS_BASE64;
+  if (!credentialsBase64) {
+    throw new Error("GOOGLE_CREDENTIALS_BASE64 tanimli degil");
+  }
 
-const ParsedReceiptSchema = z.object({
-  merchantName: z.string().nullable(),
-  receiptDate: z.string().nullable(),
-  currency: z.string().nullable(),
-  total: z.number().nullable(),
-  taxTotal: z.number().nullable(),
-  items: z.array(ReceiptItemSchema),
-  confidence: z.number().min(0).max(1),
-  warnings: z.array(z.string()),
-});
+  const credentials = JSON.parse(
+    Buffer.from(credentialsBase64, "base64").toString("utf-8"),
+  );
+
+  return new vision.ImageAnnotatorClient({
+    credentials: {
+      client_email: credentials.client_email,
+      private_key: credentials.private_key,
+    },
+    projectId: credentials.project_id,
+  });
+}
 
 function parseForm(
   req: VercelRequest,
@@ -60,9 +60,10 @@ export default async function handler(
     return res.status(405).json({ error: "Sadece POST desteklenir" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "GEMINI_API_KEY tanimli degil" });
+  if (!process.env.GOOGLE_CREDENTIALS_BASE64) {
+    return res
+      .status(500)
+      .json({ error: "GOOGLE_CREDENTIALS_BASE64 tanimli degil" });
   }
 
   let file: formidable.File;
@@ -84,86 +85,42 @@ export default async function handler(
 
   try {
     const imageBuffer = fs.readFileSync(file.filepath);
-    const base64 = imageBuffer.toString("base64");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
+    const client = getVisionClient();
 
-    const prompt = `Sen bir fis/fatura OCR asistanisin. Bu gorseldeki fisi analiz et ve asagidaki JSON formatinda dondur. Sadece JSON dondur, baska aciklama yazma.
-
-Kurallar:
-- Emin olmadigin alanlari null yap, uydurma.
-- receiptDate formati: YYYY-MM-DD
-- Satir toplamlari ile genel toplam tutarsizsa warnings dizisine ekle.
-- confidence 0-1 arasi, ne kadar eminsen o kadar yuksek.
-- Locale: ${locale}
-
-JSON formati:
-{
-  "merchantName": "string|null",
-  "receiptDate": "YYYY-MM-DD|null",
-  "currency": "string|null",
-  "total": number|null,
-  "taxTotal": number|null,
-  "items": [
-    {"name": "string", "quantity": number|null, "unitPrice": number|null, "lineTotal": number, "rawText": "string|null"}
-  ],
-  "confidence": number,
-  "warnings": ["string"]
-}`;
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: mime,
-          data: base64,
-        },
+    const [result] = await client.documentTextDetection({
+      image: { content: imageBuffer },
+      imageContext: {
+        languageHints: [locale === "tr-TR" ? "tr" : "en"],
       },
-    ]);
+    });
 
-    const text = result.response.text();
+    const fullText =
+      result.fullTextAnnotation?.text ||
+      result.textAnnotations?.[0]?.description ||
+      "";
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return res
-        .status(500)
-        .json({ error: "Gemini yanitindan JSON cikarilamadi" });
+    if (!fullText.trim()) {
+      return res.status(200).json({
+        parsedReceipt: {
+          merchantName: null,
+          receiptDate: null,
+          currency: null,
+          total: null,
+          taxTotal: null,
+          items: [],
+          confidence: 0,
+          warnings: ["Goruntude metin bulunamadi"],
+        },
+      });
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch {
-      return res.status(500).json({ error: "Gemini yaniti gecersiz JSON" });
-    }
+    const parsedReceipt = parseReceiptText(fullText);
 
-    const validation = ParsedReceiptSchema.safeParse(parsed);
-    if (!validation.success) {
-      const raw = parsed as Record<string, unknown>;
-      const fallback = {
-        merchantName: raw.merchantName ?? null,
-        receiptDate: raw.receiptDate ?? null,
-        currency: raw.currency ?? null,
-        total: typeof raw.total === "number" ? raw.total : null,
-        taxTotal: typeof raw.taxTotal === "number" ? raw.taxTotal : null,
-        items: Array.isArray(raw.items) ? raw.items : [],
-        confidence: Math.min(
-          typeof raw.confidence === "number" ? raw.confidence : 0,
-          0.3,
-        ),
-        warnings: [
-          ...(Array.isArray(raw.warnings) ? raw.warnings : []),
-          "Yanit dogrulamasi basarisiz, guvenilirlik dusuruldu",
-        ],
-      };
-      return res.status(200).json({ parsedReceipt: fallback });
-    }
-
-    return res.status(200).json({ parsedReceipt: validation.data });
+    return res.status(200).json({ parsedReceipt });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Bilinmeyen hata";
-    console.error("Gemini parse error:", msg);
+    console.error("Vision API error:", msg);
     return res
       .status(500)
       .json({ error: "Fis analiz edilemedi: " + msg });
